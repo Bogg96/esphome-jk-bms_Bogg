@@ -274,7 +274,7 @@ void JkRS485Sniffer::send_command_switch_or_number_to_slave_uint32(std::uint8_t 
   frame[12] = ((computed_checksum & 0x00FF)>>0);
 
 
-  ESP_LOGD(TAG, "MESSAGE REQUEST TO SEND switch >>: %s",format_hex_pretty_to(frame, size).c_str());
+  ESP_LOGD(TAG, "MESSAGE REQUEST TO SEND switch >>: %s",format_hex_pretty(frame, size).c_str());
 //  // Enviar el array de bytes por UART
   std::vector<uint8_t> data_to_send(frame, frame + size / sizeof(frame[0]));
 
