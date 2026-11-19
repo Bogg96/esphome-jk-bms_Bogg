@@ -1,4 +1,7 @@
 #include "jk_rs485_sniffer.h"
+#include "jk_rs485_hex.h"
+
+#include <cinttypes>
 
 
 namespace esphome {
@@ -274,7 +277,7 @@ void JkRS485Sniffer::send_command_switch_or_number_to_slave_uint32(std::uint8_t 
   frame[12] = ((computed_checksum & 0x00FF)>>0);
 
 
-  ESP_LOGD(TAG, "MESSAGE REQUEST TO SEND switch >>: %s",format_hex_pretty_to(frame, size).c_str());
+  ESP_LOGD(TAG, "MESSAGE REQUEST TO SEND switch >>: %s",hex_pretty(frame, size).c_str());
 //  // Enviar el array de bytes por UART
   std::vector<uint8_t> data_to_send(frame, frame + size / sizeof(frame[0]));
 
@@ -314,7 +317,7 @@ void JkRS485Sniffer::send_command_switch_or_number_to_slave_uint16(std::uint8_t 
      
 
 
-  ESP_LOGD(TAG, "MESSAGE REQUEST TO SEND switch or number >>: %s",format_hex_pretty_to(frame, size).c_str());
+  ESP_LOGD(TAG, "MESSAGE REQUEST TO SEND switch or number >>: %s",hex_pretty(frame, size).c_str());
 //  // Enviar el array de bytes por UART
   std::vector<uint8_t> data_to_send(frame, frame + size / sizeof(frame[0]));
 
@@ -354,7 +357,7 @@ void JkRS485Sniffer::send_command_switch_or_number_to_slave_int32(std::uint8_t s
 
 
 
-  ESP_LOGD(TAG, "MESSAGE REQUEST TO SEND switch or number >>: %s",format_hex_pretty(frame, size).c_str());
+  ESP_LOGD(TAG, "MESSAGE REQUEST TO SEND switch or number >>: %s",hex_pretty(frame, size).c_str());
 //  // Enviar el array de bytes por UART
   std::vector<uint8_t> data_to_send(frame, frame + size / sizeof(frame[0]));
 
@@ -397,7 +400,7 @@ void JkRS485Sniffer::send_request_to_slave(uint8_t address, uint8_t frame_type){
     frame[9] = ((computed_checksum & 0xFF00)>>8);
     frame[10] = ((computed_checksum & 0x00FF)>>0);
 
-    ESP_LOGV(TAG, "MESSAGE REQUEST TO SEND>>: %s",format_hex_pretty_to(frame, 11).c_str());
+    ESP_LOGV(TAG, "MESSAGE REQUEST TO SEND>>: %s",hex_pretty(frame, 11).c_str());
     // Enviar el array de bytes por UART
     std::vector<uint8_t> data_to_send(frame, frame + sizeof(frame) / sizeof(frame[0]));
 
@@ -487,7 +490,7 @@ bool JkRS485Sniffer::calculate_next_pooling(void){
 
   if (found==true){
     const uint32_t now=millis();
-    ESP_LOGI(TAG, "POOLING NEXT AVAILABLE... [address:0x%02X] @ %d [%u,%u,%u]",this->pooling_index.node_address,this->pooling_index.frame_type,
+    ESP_LOGI(TAG, "POOLING NEXT AVAILABLE... [address:0x%02X] @ %d [%" PRIu32 ",%" PRIu32 ",%" PRIu32 "]",this->pooling_index.node_address,this->pooling_index.frame_type,
                                                           now-this->rs485_network_node[this->pooling_index.node_address].last_device_settings_request_received_OK,
                                                           now-this->rs485_network_node[this->pooling_index.node_address].last_cell_info_request_received_OK,
                                                           now-this->rs485_network_node[this->pooling_index.node_address].last_device_info_request_received_OK);
@@ -555,7 +558,7 @@ void JkRS485Sniffer::loop() {
 
     do {
         cont_manage++;
-        ESP_LOGV(TAG, "Buffer before number %d:    %s",cont_manage,format_hex_pretty_to(&this->rx_buffer_.front(), this->rx_buffer_.size()).c_str());  
+        ESP_LOGV(TAG, "Buffer before number %d:    %s",cont_manage,hex_pretty(this->rx_buffer_.data(), this->rx_buffer_.size()).c_str());  
         response=this->manage_rx_buffer_();
         ESP_LOGV(TAG, "Response:            %d (%s)",response, rx_result_to_string(response));
         if (original_buffer_size==rx_buffer_.size()){
@@ -569,7 +572,7 @@ void JkRS485Sniffer::loop() {
     if (original_buffer_size==0){
       ESP_LOGV(TAG,     "Buffer empty");
 //    } else {
-//      ESP_LOGD(TAG,     "Buffer after at the end:   %s",format_hex_pretty(&this->rx_buffer_.front(), this->rx_buffer_.size()).c_str());
+//      ESP_LOGD(TAG,     "Buffer after at the end:   %s",hex_pretty(this->rx_buffer_.data(), this->rx_buffer_.size()).c_str());
     }
     
     
@@ -792,7 +795,7 @@ uint8_t JkRS485Sniffer::manage_rx_buffer_(void) {
     uint16_t remote_checksum = ((uint16_t(raw[6]) << 8) | (uint16_t(raw[7]) << 0));
     if (computed_checksum != remote_checksum) {
       this->rx_short_checksum_fail_++;
-      ESP_LOGV(TAG, "CHECKSUM failed! 0x%04X != 0x%04X (short_fail=%u)", computed_checksum,
+      ESP_LOGV(TAG, "CHECKSUM failed! 0x%04X != 0x%04X (short_fail=%" PRIu32 ")", computed_checksum,
                remote_checksum, this->rx_short_checksum_fail_);
       result = RX_CHECKSUM_FAIL;
       return false;
@@ -821,7 +824,7 @@ uint8_t JkRS485Sniffer::manage_rx_buffer_(void) {
     uint16_t remote_checksum = ((uint16_t(raw[9]) << 8) | (uint16_t(raw[10]) << 0));
     if (computed_checksum != remote_checksum) {
       this->rx_request_checksum_fail_++;
-      ESP_LOGV(TAG, "CHECKSUM failed! 0x%04X != 0x%04X (req_fail=%u)", computed_checksum,
+      ESP_LOGV(TAG, "CHECKSUM failed! 0x%04X != 0x%04X (req_fail=%" PRIu32 ")", computed_checksum,
                remote_checksum, this->rx_request_checksum_fail_);
       result = RX_CHECKSUM_FAIL;
       return false;
@@ -861,7 +864,7 @@ uint8_t JkRS485Sniffer::manage_rx_buffer_(void) {
         erase_prefix(this->rx_buffer_.size() - keep);
       }
       this->rx_preamble_drop_++;
-      ESP_LOGV(TAG, "No preamble found, dropping buffer (preamble_drop=%u)", this->rx_preamble_drop_);
+      ESP_LOGV(TAG, "No preamble found, dropping buffer (preamble_drop=%" PRIu32 ")", this->rx_preamble_drop_);
       result = RX_RESYNC;
       return true;
     }
@@ -878,7 +881,7 @@ uint8_t JkRS485Sniffer::manage_rx_buffer_(void) {
 
     if (computed_checksum != remote_checksum) {
       this->rx_response_checksum_fail_++;
-      ESP_LOGW(TAG, "CHECKSUM failed! 0x%02X != 0x%02X (resp_fail=%u)", computed_checksum,
+      ESP_LOGW(TAG, "CHECKSUM failed! 0x%02X != 0x%02X (resp_fail=%" PRIu32 ")", computed_checksum,
                remote_checksum, this->rx_response_checksum_fail_);
       // Search starts at begin()+1, so index_next is always >0 whether or
       // not a next preamble is found (search miss -> index_next == size()).
@@ -916,7 +919,7 @@ uint8_t JkRS485Sniffer::manage_rx_buffer_(void) {
     std::vector<uint8_t> data(this->rx_buffer_.begin(), this->rx_buffer_.begin() + response_size);
     this->rx_frames_ok_++;
     ESP_LOGD(TAG, "Frame received from SLAVE (type: 0x%02X, %d bytes) %02X address", raw[4], data.size(), address);
-    ESP_LOGVV(TAG, "  %s", format_hex_pretty_to(&data.front(), data.size()).c_str());
+    ESP_LOGVV(TAG, "  %s", hex_pretty(data.data(), data.size()).c_str());
 
     bool found = false;
     for (auto *device : this->devices_) {
@@ -956,9 +959,9 @@ uint8_t JkRS485Sniffer::manage_rx_buffer_(void) {
 void JkRS485Sniffer::dump_config() {
   ESP_LOGCONFIG(TAG, "JkRS485Sniffer:");
   ESP_LOGCONFIG(TAG, "  RX timeout: %d ms", this->rx_timeout_);
-  ESP_LOGCONFIG(TAG, "  RX frames OK: %u", this->rx_frames_ok_);
-  ESP_LOGCONFIG(TAG, "  RX preamble drops: %u", this->rx_preamble_drop_);
-  ESP_LOGCONFIG(TAG, "  RX checksum failures: short=%u request=%u response=%u",
+  ESP_LOGCONFIG(TAG, "  RX frames OK: %" PRIu32, this->rx_frames_ok_);
+  ESP_LOGCONFIG(TAG, "  RX preamble drops: %" PRIu32, this->rx_preamble_drop_);
+  ESP_LOGCONFIG(TAG, "  RX checksum failures: short=%" PRIu32 " request=%" PRIu32 " response=%" PRIu32,
                 this->rx_short_checksum_fail_, this->rx_request_checksum_fail_, this->rx_response_checksum_fail_);
 }
 float JkRS485Sniffer::get_setup_priority() const {
